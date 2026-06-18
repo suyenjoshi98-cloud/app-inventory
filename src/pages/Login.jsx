@@ -65,10 +65,7 @@ export default function Login() {
       const matchedUser = users.find(
         (u) => u.email === form.email && u.password === form.password,
       );
-git add src/pages/Login.jsx
-git commit -m "auto create admin on first login"
-git push
-vercel --prod
+
       if (!matchedUser) {
         setError("Incorrect email or password.");
         return;
