@@ -40,15 +40,35 @@ export default function Login() {
     try {
       const users = JSON.parse(localStorage.getItem("users") || "[]");
 
+      // if (users.length === 0) {
+      //   setError("No account found. Please sign up first.");
+      //   return;
+      // }
+
       if (users.length === 0) {
-        setError("No account found. Please sign up first.");
+        const adminUser = {
+          id: 1,
+          name: "Admin",
+          email: form.email,
+          password: form.password,
+          role: "ADMIN",
+          status: "active",
+          approved: true,
+        };
+        localStorage.setItem("users", JSON.stringify([adminUser]));
+        localStorage.setItem("user", JSON.stringify(adminUser));
+        localStorage.setItem("isLoggedIn", "true");
+        navigate("/dashboard");
         return;
       }
 
       const matchedUser = users.find(
         (u) => u.email === form.email && u.password === form.password,
       );
-
+git add src/pages/Login.jsx
+git commit -m "auto create admin on first login"
+git push
+vercel --prod
       if (!matchedUser) {
         setError("Incorrect email or password.");
         return;
