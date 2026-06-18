@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { signInWithPopup } from "firebase/auth";
+import { auth, googleProvider } from "../firebase";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -40,7 +42,19 @@ export default function Login() {
       const users = JSON.parse(localStorage.getItem("users") || "[]");
 
       if (users.length === 0) {
-        setError("No account found. Please sign up first.");
+        const adminUser = {
+          id: 1,
+          name: "Admin",
+          email: form.email,
+          password: form.password,
+          role: "ADMIN",
+          status: "active",
+          approved: true,
+        };
+        localStorage.setItem("users", JSON.stringify([adminUser]));
+        localStorage.setItem("user", JSON.stringify(adminUser));
+        localStorage.setItem("isLoggedIn", "true");
+        navigate("/dashboard");
         return;
       }
 
@@ -52,26 +66,20 @@ export default function Login() {
         setError("Incorrect email or password.");
         return;
       }
-      console.log("User status:", matchedUser.status);
-      console.log("Status check:", matchedUser.status === "Inactive");
 
-      // Block pending users
       if (matchedUser.status === "pending") {
         setError("Your account is pending admin approval. Please wait.");
         return;
       }
 
-      // Block explicitly rejected users
       if (matchedUser.status === "rejected") {
         setError("Your account has been rejected. Contact the administrator.");
         return;
       }
 
-      // Block InActive user as a deactivate
-
       if (
-        matchedUser.status === "inactive" ||
-        matchedUser.status === "Inactive"
+        matchedUser.status === "Inactive" ||
+        matchedUser.status === "inactive"
       ) {
         setError(
           "Your account has been deactivated. Contact the administrator.",
@@ -79,9 +87,13 @@ export default function Login() {
         return;
       }
 
+      if (!["active", "Active"].includes(matchedUser.status)) {
+        setError("Your account is not active. Contact the administrator.");
+        return;
+      }
+
       localStorage.setItem("user", JSON.stringify(matchedUser));
       localStorage.setItem("isLoggedIn", "true");
-
       navigate("/dashboard");
     } catch {
       setError("Something went wrong. Please try again.");
@@ -90,10 +102,39 @@ export default function Login() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const googleUser = result.user;
+      const users = JSON.parse(localStorage.getItem("users") || "[]");
+      let existingUser = users.find((u) => u.email === googleUser.email);
+      if (!existingUser) {
+        existingUser = {
+          id: Date.now(),
+          name: googleUser.displayName,
+          email: googleUser.email,
+          role: users.length === 0 ? "ADMIN" : "SALES_MANAGER",
+          status: users.length === 0 ? "active" : "pending",
+          approved: users.length === 0,
+        };
+        users.push(existingUser);
+        localStorage.setItem("users", JSON.stringify(users));
+      }
+      if (!["active", "Active"].includes(existingUser.status)) {
+        setError("Your account is pending admin approval. Please wait.");
+        return;
+      }
+      localStorage.setItem("user", JSON.stringify(existingUser));
+      localStorage.setItem("isLoggedIn", "true");
+      navigate("/dashboard");
+    } catch (err) {
+      setError("Google sign-in failed. Please try again.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full max-w-md p-8">
-        {/* Logo */}
         <div className="flex items-center gap-3 mb-8">
           <div className="w-9 h-9 bg-[#e8533a] rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-base">SM</span>
@@ -107,7 +148,6 @@ export default function Login() {
         <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome Back</h1>
         <p className="text-sm text-gray-400 mb-6">Sign in to your account</p>
 
-        {/* Pending approval message from signup redirect */}
         {pendingMessage && (
           <div className="bg-amber-50 text-amber-600 text-sm px-4 py-3 rounded-xl mb-4 border border-amber-100">
             {pendingMessage}
@@ -177,7 +217,10 @@ export default function Login() {
           <div className="flex-1 h-px bg-gray-100" />
         </div>
 
-        <button className="w-full border border-gray-200 rounded-xl py-3 text-sm text-gray-600 font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
+        <button
+          onClick={handleGoogleLogin}
+          className="w-full border border-gray-200 rounded-xl py-3 text-sm text-gray-600 font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+        >
           <img
             src="https://www.svgrepo.com/show/475656/google-color.svg"
             alt="Google"

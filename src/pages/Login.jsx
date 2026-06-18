@@ -1,6 +1,7 @@
-import { IconMatchstick } from "@tabler/icons-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { signInWithPopup } from "firebase/auth";
+import { auth, googleProvider } from "../firebase";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -40,11 +41,6 @@ export default function Login() {
     try {
       const users = JSON.parse(localStorage.getItem("users") || "[]");
 
-      // if (users.length === 0) {
-      //   setError("No account found. Please sign up first.");
-      //   return;
-      // }
-
       if (users.length === 0) {
         const adminUser = {
           id: 1,
@@ -71,29 +67,18 @@ export default function Login() {
         return;
       }
 
-      // Pending Users need to approved by the admin
-
       if (matchedUser.status === "pending") {
         setError("Your account is pending admin approval. Please wait.");
         return;
       }
-
-      // Rejected users by the admin
 
       if (matchedUser.status === "rejected") {
         setError("Your account has been rejected. Contact the administrator.");
         return;
       }
 
-      // Deactivated the users
-
-      if (
-        matchedUser.status === "Inactive" ||
-        matchedUser.status === "inactive"
-      ) {
-        setError(
-          "Your account has been deactivated. Contact the administrator.",
-        );
+      if (matchedUser.status === "Inactive" || matchedUser.status === "inactive") {
+        setError("Your account has been deactivated. Contact the administrator.");
         return;
       }
 
@@ -104,7 +89,6 @@ export default function Login() {
 
       localStorage.setItem("user", JSON.stringify(matchedUser));
       localStorage.setItem("isLoggedIn", "true");
-
       navigate("/dashboard");
     } catch {
       setError("Something went wrong. Please try again.");
@@ -113,10 +97,39 @@ export default function Login() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const googleUser = result.user;
+      const users = JSON.parse(localStorage.getItem("users") || "[]");
+      let existingUser = users.find((u) => u.email === googleUser.email);
+      if (!existingUser) {
+        existingUser = {
+          id: Date.now(),
+          name: googleUser.displayName,
+          email: googleUser.email,
+          role: users.length === 0 ? "ADMIN" : "SALES_MANAGER",
+          status: users.length === 0 ? "active" : "pending",
+          approved: users.length === 0,
+        };
+        users.push(existingUser);
+        localStorage.setItem("users", JSON.stringify(users));
+      }
+      if (!["active", "Active"].includes(existingUser.status)) {
+        setError("Your account is pending admin approval. Please wait.");
+        return;
+      }
+      localStorage.setItem("user", JSON.stringify(existingUser));
+      localStorage.setItem("isLoggedIn", "true");
+      navigate("/dashboard");
+    } catch (err) {
+      setError("Google sign-in failed. Please try again.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full max-w-md p-8">
-        {/* Logo */}
         <div className="flex items-center gap-3 mb-8">
           <div className="w-9 h-9 bg-[#e8533a] rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-base">SM</span>
@@ -127,7 +140,6 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Title */}
         <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome Back</h1>
         <p className="text-sm text-gray-400 mb-6">Sign in to your account</p>
 
@@ -137,7 +149,6 @@ export default function Login() {
           </div>
         )}
 
-        {/* Error */}
         {error && (
           <div className="bg-red-50 text-red-500 text-sm px-4 py-3 rounded-xl mb-4 border border-red-100">
             {error}
@@ -145,11 +156,8 @@ export default function Login() {
         )}
 
         <div className="space-y-4">
-          {/* Email */}
           <div>
-            <label className="text-sm font-semibold text-gray-600 block mb-1.5">
-              Email
-            </label>
+            <label className="text-sm font-semibold text-gray-600 block mb-1.5">Email</label>
             <input
               type="email"
               placeholder="you@gmail.com"
@@ -159,11 +167,8 @@ export default function Login() {
             />
           </div>
 
-          {/* Password */}
           <div>
-            <label className="text-sm font-semibold text-gray-600 block mb-1.5">
-              Password
-            </label>
+            <label className="text-sm font-semibold text-gray-600 block mb-1.5">Password</label>
             <div className="relative w-full border border-gray-200 rounded-xl focus-within:border-[#e8533a] transition-colors">
               <input
                 type={showPassword ? "text" : "password"}
@@ -182,7 +187,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Forgot Password */}
           <div className="flex justify-end">
             <span className="text-sm text-[#e8533a] cursor-pointer hover:underline">
               Forgot password?
@@ -198,30 +202,23 @@ export default function Login() {
           </button>
         </div>
 
-        {/* Divider */}
         <div className="flex items-center gap-3 my-6">
           <div className="flex-1 h-px bg-gray-100" />
           <span className="text-xs text-gray-400">or continue with</span>
           <div className="flex-1 h-px bg-gray-100" />
         </div>
 
-        {/* Google */}
-        <button className="w-full border border-gray-200 rounded-xl py-3 text-sm text-gray-600 font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-          <img
-            src="https://www.svgrepo.com/show/475656/google-color.svg"
-            alt="Google"
-            className="w-5 h-5"
-          />
+        <button
+          onClick={handleGoogleLogin}
+          className="w-full border border-gray-200 rounded-xl py-3 text-sm text-gray-600 font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+        >
+          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
           Google
         </button>
 
-        {/* Footer */}
         <p className="text-center text-sm text-gray-400 mt-6">
           Don't have an account?{" "}
-          <Link
-            to="/signup"
-            className="text-[#e8533a] font-semibold hover:underline"
-          >
+          <Link to="/signup" className="text-[#e8533a] font-semibold hover:underline">
             Sign up
           </Link>
         </p>
