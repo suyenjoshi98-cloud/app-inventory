@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import DashboardBottom from "../components/DashboardBottom";
-import SalesChart from "../components/charts/SalesChart";
-import CustomerChart from "../components/charts/CustomerChart";
+import SalesChart from "../components/Charts/SalesChart";
+import CustomerChart from "../components/Charts/CustomerChart";
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [stats, setStats] = useState({
